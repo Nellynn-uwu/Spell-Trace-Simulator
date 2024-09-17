@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spell Trace Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #slots {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+
+        .slot {
+            width: 50px;
+            height: 50px;
+            border: 1px solid black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+        }
+        .success {
+            background-color: green;
+            color: white;
+        }
+        .failed {
+            background-color: red;
+            color: white;
+        }
+        .empty {
+            background-color: white;
+        }
+        #counters {
+            margin-bottom: 20px;
+        }
+        .counter {
+            margin-right: 20px;
+        }
+        #controls {
+            margin-bottom: 20px;
+        }
+    .highlight {
+        margin: 5px; /* Adjust as needed to show highlight */
+        box-shadow: 0 0 0 3px yellow; /* Optional: adds a yellow glow effect */
+    }
+    .slot {
+        width: 50px;
+        height: 50px;
+        border: 1px solid black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 18px;
+    }
+    .success {
+        background-color: green;
+        color: white;
+    }
+    .failed {
+        background-color: red;
+        color: white;
+    }
+    .empty {
+        background-color: white;
+    }
+    .highlight {
+        border: 2px solid yellow !important; /* Ensure the outline is applied */
+    }
+    #countersTable {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    #countersTable th, #countersTable td {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: center;
+    }
+
+    #countersTable th {
+        background-color: #f2f2f2;
+    }
+
+    #countersTable .average-row {
+        background-color: #e6ffe6;
+    }
+
+    #countersTable .deviation-row {
+        background-color: #fff2e6;
+    }
+    #countersTable .maximum-row {
+        background-color: #e6f3ff;
+    }
+    #countersTable .minimum-row {
+        background-color: #fee6ff;
+    }
+
+    #slots {
+        display: flex;
+        justify-content: center; /* Center slots horizontally */
+        align-items: center; /* Center slots vertically */
+        margin-bottom: 20px;
+        height: 70px; /* Fixed height to ensure it doesn't affect layout below */
+        overflow-y: auto; /* Adds a scrollbar if slots exceed the height */
+        border: 1px solid #ccc; /* Adds a border around the slots container */
+    }
+    .slot {
+        margin: 0 5px; /* Adjust spacing between slots if needed */
+    }
+    </style>
+</head>
+<body>
+    <h1>Spell Trace Simulator</h1>
+    <div>
+	<p>Made by: Nelly (Solstice) in Elysium</p>
+	<span>I lied it was ChatGPT I don't even know how to code uwu</span>
+    </div>
+<br>
+    <div id="slots">
+        <!-- Slots will be generated here -->
+    </div>
+
+<div id="controls">
+    <label for="totalslots">Equipment slots:</label>
+    <input type="number" id="totalslots" value="9" min="0">
+    <br><br>
+    <label for="successRate">Spell trace success rate (%):</label>
+    <input type="number" id="successRate" value="29" min="0" max="100">
+    <br><br>
+    <label for="resetThreshold">Threshold of fails to use innocent scroll:</label>
+    <input type="number" id="innoThreshold" value="8" min="0" step="1">
+    <br><br>
+    <label for="innoSuccessRate">Inno Success Rate (%):</label>
+    <input type="number" id="innoSuccessRate" value="50" min="0" max="100">
+    <label for="cssSuccessRate">CSS Success Rate (%):</label>
+    <input type="number" id="cssSuccessRate" value="10" min="0" max="100">
+</div>
+
+    <div id="counters">
+        <span class="counter">Total Enhancement Attempts: <span id="enhancementAttempts">0</span></span>
+        <span class="counter">Total Inno Attempts: <span id="innoAttempts">0</span></span>
+        <span class="counter">Successful Innos: <span id="successfulInnos">0</span></span>
+        <span class="counter">Total CSS Attempts: <span id="cssAttempts">0</span></span>
+        <span class="counter">Successful CSS: <span id="successfulCss">0</span></span>
+        <br><br>
+            <label for="simulationSpeed">Simulation Speed (ms):</label>
+    <input type="number" id="simulationSpeed" value="0.2" min="0" step="100">
+    </div>
+
+    <button onclick="startSimulation()">Start Simulation</button>
+    <br><br>
+    <button onclick="startBatchSimulation()">Start Batch Simulation</button> 
+        <label for="batchCount">Batch Simulation Count:</label>
+        <input type="number" id="batchCount" value="1" min="1" step="1">
+        <span id="batchNumber"></span>
+    <p id="log"></p>
+<table id="countersTable">
+    <thead>
+        <tr>
+            <th>Trial</th>
+            <th>Enhancement Attempts</th>
+            <th>Inno Attempts</th>
+            <th>Successful Innos</th>
+            <th>CSS Attempts</th>
+            <th>Successful CSS</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Rows will be added here by logAndResetCounters -->
+    </tbody>
+    <tfoot>
+        <!-- Rows for average and standard deviation will be added here -->
+    </tfoot>
+</table>
+
+
+</body>
+
+<script>
+    let slots = [];
+    let slotStatus = []; // To track if slot is empty, success, or failed
+    let simulationSpeed = 500
+
+    let successRate = 0.29;
+    const slotFailNotFilledRate = 0.04;
+    let cssSuccessRate = 0.1;
+    let innoSuccessRate = 0.50; // 50% success rate for Inno
+    let innoThreshold = 3; // Set the initial threshold for using Inno
+
+    let enhancementAttempts = 0;
+    let cssAttempts = 0;
+    let successfulCss = 0;
+    let innoAttempts = 0;
+    let successfulInnos = 0;
+    let currentSlot = 0; // Track the current slot being enhanced
+    let trial = 0
+
+    function initSlots() {
+        const numSlots = parseInt(document.getElementById("totalslots").value); // Get number of slots from input
+        const slotsDiv = document.getElementById("slots");
+        slotsDiv.innerHTML = ""; // Clear previous slots
+        slots = [];
+        slotStatus = Array(numSlots).fill("empty"); // Reset slot status
+
+        for (let i = 0; i < numSlots; i++) {
+            let slotDiv = document.createElement("div");
+            slotDiv.className = "slot empty";
+            slotDiv.id = "slot" + i;
+            slotDiv.innerText = i; // Set the index of the slot
+            slotsDiv.appendChild(slotDiv);
+            slots.push(slotDiv); // Add slot to array
+        }
+        currentSlot = 0; // Start from the first slot
+        document.getElementById("log").innerText = `Initialized ${numSlots} slots.`;
+    }
+
+    // Function to use Inno to reset all slots
+    function useInno() {
+        return new Promise((resolve) => {
+            function attemptInno() {
+                innoAttempts++
+                document.getElementById("innoAttempts").innerText = innoAttempts;
+                let innoRoll = Math.random();
+                if (innoRoll < innoSuccessRate) {
+                    // Inno was successful
+                    successfulInnos++;
+                    document.getElementById("successfulInnos").innerText = successfulInnos
+                    initSlots(); // Reinitialize the slots if Inno was successful
+                    resolve(); // Resolve the promise
+                } else {
+                    // If Inno was not successful, retry after 0.5 seconds
+                    setTimeout(attemptInno, simulationSpeed); // Wait 0.5 seconds before retrying
+                }
+            }
+
+            // Initial attempt with a 0.5-second delay
+            setTimeout(attemptInno, simulationSpeed); // Wait 0.5 seconds before starting the first attempt
+        });
+    }
+
+function highlightCurrentSlot() {
+    // Remove highlight from all slots
+    slots.forEach(slot => {
+        slot.classList.remove("highlight");
+    });
+
+    // Apply highlight to the current slot
+    if (slots[currentSlot]) {
+        slots[currentSlot].classList.add("highlight");
+    }
+}
+
+
+    // Function to carry out an enhancement attempt on the current slot
+function enhanceSlot() {
+    if (currentSlot >= slots.length) {
+        document.getElementById("log").innerText = "All slots processed.";
+        return;
+    }
+
+    enhancementAttempts++;
+    document.getElementById("enhancementAttempts").innerText = enhancementAttempts;
+
+    let successRoll = Math.random();
+    let slotDiv = slots[currentSlot];
+    if (successRoll < successRate) {
+        slotStatus[currentSlot] = "success"; // Mark as success
+        slotDiv.className = "slot success";
+        slotDiv.innerText = "S";
+        highlightCurrentSlot()
+    } else {
+        // Roll for whether the slot is filled or not
+        let slotNotFilledRoll = Math.random();
+        if (slotNotFilledRoll < slotFailNotFilledRate) {
+            // Reset the slot status and UI before retrying
+            slotStatus[currentSlot] = "empty";
+            slotDiv.className = "slot empty";
+            slotDiv.innerText = "-";
+            highlightCurrentSlot()
+            // Retry enhancement for this slot after 0.5 seconds
+            setTimeout(enhanceSlot, simulationSpeed); // Wait 0.5 seconds before retrying
+            return; // Exit the current function to avoid incrementing currentSlot
+        } else {
+            // Slot filled with failure
+            slotStatus[currentSlot] = "failed";
+            slotDiv.className = "slot failed";
+            slotDiv.innerText = "F";
+            highlightCurrentSlot()
+        }
+    }
+
+    // Move to the next slot
+    currentSlot++;
+}
+
+    // Function to enhance all slots sequentially
+async function enhanceAllSlots() {
+    while (currentSlot < slots.length) {
+        // Skip over slots that are not empty
+        if (slotStatus[currentSlot] !== "empty") {
+            currentSlot++;
+            continue; // Move to the next slot
+        }
+
+        await enhanceSlot(); // Carry out enhancement on the current slot
+
+        // Check if the number of failed slots meets or exceeds the threshold for using Inno
+        let failedSlotsCount = slotStatus.filter(status => status === "failed").length;
+        if (failedSlotsCount >= innoThreshold) {
+            // Use Inno to attempt a reset and wait for it to succeed
+            await useInno(); // Wait for Inno to succeed before continuing
+        } else {
+            // Wait 0.5 seconds before continuing to the next slot
+            await new Promise(resolve => setTimeout(resolve, simulationSpeed));
+        }
+    }
+    document.getElementById("log").innerText = "Beginning CSS.";
+}
+
+
+function updateInnoThreshold() {
+    const innoThresholdInput = document.getElementById("innoThreshold").value;
+
+    // Validate that the input is a valid integer and not empty
+    if (!Number.isInteger(+innoThresholdInput) || +innoThresholdInput < 0) {
+        alert("Please enter a valid integer for the Inno Threshold.");
+        return false; // Indicate that the update failed
+    }
+
+    // Update innoThreshold if valid
+    innoThreshold = +innoThresholdInput; // Use the numeric value
+    return true; // Indicate that the update was successful
+}
+
+
+
+    // Function to start the sequential enhancement process
+
+async function CSSClearSlot() {
+    // Find the index of one of the failed slots
+    const failedSlots = slotStatus.map((status, index) => status === "failed" ? index : -1).filter(index => index !== -1);
+
+    if (failedSlots.length === 0) {
+        // If there are no failed slots, end the function
+        return;
+    }
+
+    // Choose a failed slot to attempt to clear
+    currentSlot = failedSlots[0]; // Take the first failed slot for this attempt
+    highlightCurrentSlot();
+
+    async function attemptCSS() {
+        cssAttempts++; // Increment attempt counter here
+        document.getElementById("cssAttempts").innerText = cssAttempts;
+        console.log(cssAttempts)
+        let cssRoll = Math.random();
+        if (cssRoll < cssSuccessRate) {
+            // CSS was successful
+            successfulCss++;
+            document.getElementById("successfulCss").innerText = successfulCss;
+
+            // Clear the failed slot
+            slotStatus[currentSlot] = "empty";
+            let slotDiv = slots[currentSlot];
+            slotDiv.className = "slot empty";
+            slotDiv.innerText = "-";
+
+            // Return true to indicate successful CSS use
+            return true;
+        } else {
+            // CSS was not successful, return false
+            return false;
+        }
+    }
+
+    // Use a loop to handle retries
+    while (true) {
+        const success = await attemptCSS();
+        if (success) {
+            // Continue clearing remaining failed slots if CSS was successful
+            await new Promise(resolve => setTimeout(resolve, simulationSpeed));
+            await CSSClearSlot();
+            break; // Exit the loop and function after successful CSS
+        } else {
+            // Retry after 0.5 seconds if CSS was not successful
+            await new Promise(resolve => setTimeout(resolve, simulationSpeed));
+        }
+    }
+}
+
+let enhancementAttemptsHistory = [];
+let innoAttemptsHistory = [];
+let successfulInnosHistory = [];
+let cssAttemptsHistory = [];
+let successfulCssHistory = [];
+
+function logAndResetCounters() {
+    const table = document.getElementById("countersTable").getElementsByTagName('tbody')[0];
+    
+    // Create a new row
+    const newRow = table.insertRow();
+    
+    trial++
+
+    // Add cells to the row
+    newRow.insertCell().innerText = trial; // Trial number
+    newRow.insertCell().innerText = enhancementAttempts;
+    newRow.insertCell().innerText = innoAttempts;
+    newRow.insertCell().innerText = successfulInnos;
+    newRow.insertCell().innerText = cssAttempts;
+    newRow.insertCell().innerText = successfulCss;
+
+    // Update historical data
+    enhancementAttemptsHistory.push(enhancementAttempts);
+    innoAttemptsHistory.push(innoAttempts);
+    successfulInnosHistory.push(successfulInnos);
+    cssAttemptsHistory.push(cssAttempts);
+    successfulCssHistory.push(successfulCss);
+
+    // Reset the counters
+    enhancementAttempts = 0;
+    cssAttempts = 0;
+    successfulCss = 0;
+    innoAttempts = 0;
+    successfulInnos = 0;
+
+    // Update the displayed counters
+    document.getElementById("enhancementAttempts").innerText = enhancementAttempts;
+    document.getElementById("innoAttempts").innerText = innoAttempts;
+    document.getElementById("successfulInnos").innerText = successfulInnos;
+    document.getElementById("cssAttempts").innerText = cssAttempts;
+    document.getElementById("successfulCss").innerText = successfulCss;
+
+    // Update the statistics row
+    updateStatistics();
+}
+
+function updateStatistics() {
+    const table = document.getElementById("countersTable").getElementsByTagName('thead')[0];
+
+    // Helper functions to calculate averages, standard deviations, max, and min
+    const average = arr => (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2);
+    const standardDeviation = arr => {
+        const avg = average(arr);
+        return Math.sqrt(arr.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b) / arr.length).toFixed(2);
+    };
+    const max = arr => Math.max(...arr).toFixed(2);
+    const min = arr => Math.min(...arr).toFixed(2);
+
+    const averages = {
+        enhancementAttempts: average(enhancementAttemptsHistory),
+        innoAttempts: average(innoAttemptsHistory),
+        successfulInnos: average(successfulInnosHistory),
+        cssAttempts: average(cssAttemptsHistory),
+        successfulCss: average(successfulCssHistory),
+    };
+
+    const deviations = {
+        enhancementAttempts: standardDeviation(enhancementAttemptsHistory),
+        innoAttempts: standardDeviation(innoAttemptsHistory),
+        successfulInnos: standardDeviation(successfulInnosHistory),
+        cssAttempts: standardDeviation(cssAttemptsHistory),
+        successfulCss: standardDeviation(successfulCssHistory),
+    };
+
+    const maximums = {
+        enhancementAttempts: max(enhancementAttemptsHistory),
+        innoAttempts: max(innoAttemptsHistory),
+        successfulInnos: max(successfulInnosHistory),
+        cssAttempts: max(cssAttemptsHistory),
+        successfulCss: max(successfulCssHistory),
+    };
+
+    const minimums = {
+        enhancementAttempts: min(enhancementAttemptsHistory),
+        innoAttempts: min(innoAttemptsHistory),
+        successfulInnos: min(successfulInnosHistory),
+        cssAttempts: min(cssAttemptsHistory),
+        successfulCss: min(successfulCssHistory),
+    };
+
+    // Update or create the average, standard deviation, maximum, and minimum rows
+    let avgRow = table.querySelector('.average-row');
+    let sdRow = table.querySelector('.deviation-row');
+    let maxRow = table.querySelector('.maximum-row');
+    let minRow = table.querySelector('.minimum-row');
+
+    // Update the average row
+    if (!avgRow) {
+        avgRow = table.insertRow();
+        avgRow.className = 'average-row';
+        avgRow.insertCell().innerText = 'Average';
+        avgRow.insertCell().innerText = averages.enhancementAttempts;
+        avgRow.insertCell().innerText = averages.innoAttempts;
+        avgRow.insertCell().innerText = averages.successfulInnos;
+        avgRow.insertCell().innerText = averages.cssAttempts;
+        avgRow.insertCell().innerText = averages.successfulCss;
+    } else {
+        avgRow.cells[1].innerText = averages.enhancementAttempts;
+        avgRow.cells[2].innerText = averages.innoAttempts;
+        avgRow.cells[3].innerText = averages.successfulInnos;
+        avgRow.cells[4].innerText = averages.cssAttempts;
+        avgRow.cells[5].innerText = averages.successfulCss;
+    }
+
+    // Update the standard deviation row
+    if (!sdRow) {
+        sdRow = table.insertRow();
+        sdRow.className = 'deviation-row';
+        sdRow.insertCell().innerText = 'Standard Deviation';
+        sdRow.insertCell().innerText = deviations.enhancementAttempts;
+        sdRow.insertCell().innerText = deviations.innoAttempts;
+        sdRow.insertCell().innerText = deviations.successfulInnos;
+        sdRow.insertCell().innerText = deviations.cssAttempts;
+        sdRow.insertCell().innerText = deviations.successfulCss;
+    } else {
+        sdRow.cells[1].innerText = deviations.enhancementAttempts;
+        sdRow.cells[2].innerText = deviations.innoAttempts;
+        sdRow.cells[3].innerText = deviations.successfulInnos;
+        sdRow.cells[4].innerText = deviations.cssAttempts;
+        sdRow.cells[5].innerText = deviations.successfulCss;
+    }
+
+    // Update or create the maximum row
+    if (!maxRow) {
+        maxRow = table.insertRow();
+        maxRow.className = 'maximum-row';
+        maxRow.insertCell().innerText = 'Maximum';
+        maxRow.insertCell().innerText = maximums.enhancementAttempts;
+        maxRow.insertCell().innerText = maximums.innoAttempts;
+        maxRow.insertCell().innerText = maximums.successfulInnos;
+        maxRow.insertCell().innerText = maximums.cssAttempts;
+        maxRow.insertCell().innerText = maximums.successfulCss;
+    } else {
+        maxRow.cells[1].innerText = maximums.enhancementAttempts;
+        maxRow.cells[2].innerText = maximums.innoAttempts;
+        maxRow.cells[3].innerText = maximums.successfulInnos;
+        maxRow.cells[4].innerText = maximums.cssAttempts;
+        maxRow.cells[5].innerText = maximums.successfulCss;
+    }
+
+    // Update or create the minimum row
+    if (!minRow) {
+        minRow = table.insertRow();
+        minRow.className = 'minimum-row';
+        minRow.insertCell().innerText = 'Minimum';
+        minRow.insertCell().innerText = minimums.enhancementAttempts;
+        minRow.insertCell().innerText = minimums.innoAttempts;
+        minRow.insertCell().innerText = minimums.successfulInnos;
+        minRow.insertCell().innerText = minimums.cssAttempts;
+        minRow.insertCell().innerText = minimums.successfulCss;
+    } else {
+        minRow.cells[1].innerText = minimums.enhancementAttempts;
+        minRow.cells[2].innerText = minimums.innoAttempts;
+        minRow.cells[3].innerText = minimums.successfulInnos;
+        minRow.cells[4].innerText = minimums.cssAttempts;
+        minRow.cells[5].innerText = minimums.successfulCss;
+    }
+}
+
+async function startSimulation() {
+    // Update and validate innoThreshold
+    simulationSpeed = document.getElementById("simulationSpeed").value
+    successRate = document.getElementById("successRate").value / 100
+    cssSuccessRate = document.getElementById("cssSuccessRate").value / 100
+    innoSuccessRate = document.getElementById("innoSuccessRate").value / 100
+    if (!updateInnoThreshold()) {
+        return; // Stop the simulation if the input is invalid
+    }
+
+    initSlots(); // Reinitialize the slots to match the current input value
+    await enhanceAllSlots(); // Begin enhancing slots sequentially
+
+    // Check for failed slots and invoke CSSClearSlot until all failed slots are cleared
+    while (slotStatus.includes("failed")) {
+        await CSSClearSlot(); // Attempt to clear failed slots
+        currentSlot = 0;
+        await enhanceAllSlots();
+    }
+
+    document.getElementById("log").innerText = "Simulation complete.";
+    
+    // Log and reset counters
+    logAndResetCounters();
+}
+
+
+    async function startBatchSimulation() {
+        const batchCount = parseInt(document.getElementById("batchCount").value);
+        
+        // Validate that batchCount is a positive integer
+        if (!Number.isInteger(batchCount) || batchCount < 1) {
+            alert("Please enter a valid positive integer for the Batch Simulation Count.");
+            return;
+        }
+        
+        for (let i = 0; i < batchCount; i++) {
+            document.getElementById("batchNumber").innerText = 'Batch number:' + i
+            await startSimulation(); // Start the simulation for each batch
+        }
+        document.getElementById("log").innerText = "Batch simulation complete.";
+    }
+
+
+
+
+
+
+    window.onload = initSlots;
+</script>
+
+
+
+
+
+
+
+</html>
