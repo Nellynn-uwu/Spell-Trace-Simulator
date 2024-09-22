@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,7 +142,7 @@
 </div>
 
     <div id="counters">
-        <span class="counter">Total Enhancement Attempts: <span id="enhancementAttempts">0</span></span>
+        <span class="counter">Total Tracing Attempts: <span id="enhancementAttempts">0</span></span>
         <span class="counter">Total Inno Attempts: <span id="innoAttempts">0</span></span>
         <span class="counter">Successful Innos: <span id="successfulInnos">0</span></span>
         <span class="counter">Total CSS Attempts: <span id="cssAttempts">0</span></span>
@@ -162,7 +163,7 @@
     <thead>
         <tr>
             <th>Trial</th>
-            <th>Enhancement Attempts</th>
+            <th>Tracing Attempts</th>
             <th>Inno Attempts</th>
             <th>Successful Innos</th>
             <th>CSS Attempts</th>
@@ -210,7 +211,7 @@
             let slotDiv = document.createElement("div");
             slotDiv.className = "slot empty";
             slotDiv.id = "slot" + i;
-            slotDiv.innerText = i; // Set the index of the slot
+            slotDiv.innerText = i + 1; // Set the index of the slot
             slotsDiv.appendChild(slotDiv);
             slots.push(slotDiv); // Add slot to array
         }
@@ -599,7 +600,8 @@ async function startSimulation() {
         }
         
         for (let i = 0; i < batchCount; i++) {
-            document.getElementById("batchNumber").innerText = 'Batch number:' + i
+            index = i + 1
+            document.getElementById("batchNumber").innerText = `Batch number: ${index}`;
             await startSimulation(); // Start the simulation for each batch
         }
         document.getElementById("log").innerText = "Batch simulation complete.";
